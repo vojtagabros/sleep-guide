@@ -2,7 +2,7 @@
 
 A beautiful, interactive sleep guide web app to help you build better bedtime habits, calculate your ideal sleep schedule, and wind down with a guided breathing exercise.
 
-**Live site:** [your-username.github.io/sleep-guide](https://your-username.github.io/sleep-guide)
+**Live site:** [vojtagabros.github.io/sleep-guide](https://vojtagabros.github.io/sleep-guide)
 
 ---
 
