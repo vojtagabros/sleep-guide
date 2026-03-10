@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A Quieter Path to Sleep</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a1a; }
+    .habit-card { transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; }
+    .habit-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.4) !important; }
+    .filter-btn { transition: all 0.2s; cursor: pointer; border: none; font-family: inherit; }
+    .filter-btn:hover { opacity: 0.85; }
+    .breathe-circle { transition: width 0.9s cubic-bezier(0.4,0,0.2,1), height 0.9s cubic-bezier(0.4,0,0.2,1), opacity 0.9s ease; }
+    .start-btn { transition: all 0.2s; cursor: pointer; border: none; font-family: inherit; }
+    .start-btn:hover { filter: brightness(1.1); transform: scale(1.03); }
+    input[type=range] { accent-color: #8b6fc7; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const habits = [
+      { id: 1, time: "3+ hrs before bed", icon: "☕", title: "Cut caffeine", desc: "Caffeine has a ~6hr half-life. Stopping by early afternoon is one of the fastest wins for sleep onset.", tag: "Schedule" },
+      { id: 2, time: "1 hr before bed", icon: "📵", title: "Dim screens & lights", desc: "Blue light suppresses melatonin. Use Night Mode, dim overhead lights, or switch to lamps.", tag: "Environment" },
+      { id: 3, time: "45 min before bed", icon: "📓", title: "Brain dump", desc: "Write down every worry, tomorrow's tasks, and lingering thoughts. Externalizing them frees your mind.", tag: "Racing Mind" },
+      { id: 4, time: "30 min before bed", icon: "🌡️", title: "Cool the room", desc: "A room between 65–68°F (18–20°C) signals your body to drop core temperature — essential for sleep onset.", tag: "Environment" },
+      { id: 5, time: "20 min before bed", icon: "🛁", title: "Warm shower or bath", desc: "The post-shower body cooling effect mimics your natural sleep-onset temperature drop, speeding up drowsiness.", tag: "Schedule" },
+      { id: 6, time: "10 min before bed", icon: "🌬️", title: "4-7-8 breathing", desc: "Inhale 4s, hold 7s, exhale 8s. Activates the parasympathetic nervous system and quiets racing thoughts.", tag: "Racing Mind" },
+      { id: 7, time: "Bedtime", icon: "🕰️", title: "Fixed wake time — every day", desc: "The most powerful schedule reset: wake at the same time 7 days a week. Your sleep drive will self-correct within days.", tag: "Schedule" },
+    ];
+
+    const tagColors = {
+      "Schedule":    { bg: "#1e3a5f", border: "#4a90d9", text: "#7ec8f0" },
+      "Environment": { bg: "#1e3d2f", border: "#4a9e6b", text: "#7ed4a8" },
+      "Racing Mind": { bg: "#3d1e3f", border: "#a44ad9", text: "#d4a0f0" },
+    };
+
+    const breatheSteps = ["Inhale", "Hold", "Exhale"];
+    const breatheTimes = [4, 7, 8];
+
+    function App() {
+      const [checked, setChecked]         = useState({});
+      const [activeFilter, setActiveFilter] = useState("All");
+      const [breatheActive, setBreatheActive] = useState(false);
+      const [breathePhase, setBreathePhase]   = useState(0);
+      const [breatheCount, setBreatheCount]   = useState(0);
+      const [breatheTimer, setBreatheTimer]   = useState(0);
+      const [wakeMins, setWakeMins]           = useState(420); // 7:00 AM
+
+      const intervalRef = useRef(null);
+      const phaseRef    = useRef(0);
+      const timerRef    = useRef(0);
+
+      const toggle  = (id) => setChecked(p => ({ ...p, [id]: !p[id] }));
+      const done    = Object.values(checked).filter(Boolean).length;
+      const filters = ["All", "Schedule", "Racing Mind", "Environment"];
+      const filtered = activeFilter === "All" ? habits : habits.filter(h => h.tag === activeFilter);
+
+      const formatMins = (totalMins) => {
+        const t = ((totalMins % 1440) + 1440) % 1440;
+        let h = Math.floor(t / 60);
+        const m = t % 60;
+        const period = h >= 12 ? "PM" : "AM";
+        if (h > 12) h -= 12;
+        if (h === 0) h = 12;
+        return `${h}:${m.toString().padStart(2, "0")} ${period}`;
+      };
+
+      const calcTime  = (offsetHours) => formatMins(wakeMins - offsetHours * 60);
+      const wakeLabel = () => formatMins(wakeMins);
+
+      useEffect(() => {
+        if (!breatheActive) {
+          clearInterval(intervalRef.current);
+          phaseRef.current = 0; timerRef.current = 0;
+          setBreathePhase(0); setBreatheTimer(0);
+          return;
+        }
+        timerRef.current = breatheTimes[0];
+        setBreatheTimer(breatheTimes[0]);
+        intervalRef.current = setInterval(() => {
+          timerRef.current -= 1;
+          setBreatheTimer(timerRef.current);
+          if (timerRef.current <= 0) {
+            const next = (phaseRef.current + 1) % 3;
+            phaseRef.current = next;
+            setBreathePhase(next);
+            if (next === 0) setBreatheCount(c => c + 1);
+            timerRef.current = breatheTimes[next];
+            setBreatheTimer(breatheTimes[next]);
+          }
+        }, 1000);
+        return () => clearInterval(intervalRef.current);
+      }, [breatheActive]);
+
+      const circleSize    = breathePhase === 1 ? 130 : breathePhase === 0 ? 130 : 80;
+      const circleOpacity = breathePhase === 2 ? 0.5 : 0.95;
+
+      return (
+        <div style={{ minHeight: "100vh", background: "radial-gradient(ellipse at 20% 0%, #1a1040 0%, #0a0a1a 45%, #060d1a 100%)", fontFamily: "Georgia, 'Times New Roman', serif", color: "#e8e0f0", padding: "0 0 60px" }}>
+
+          <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 20px" }}>
+
+            {/* Header */}
+            <div style={{ textAlign: "center", padding: "52px 0 32px" }}>
+              <div style={{ fontSize: 13, letterSpacing: 4, color: "#9b7fd4", textTransform: "uppercase", fontFamily: "sans-serif", marginBottom: 14 }}>
+                Your Personalized Plan
+              </div>
+              <h1 style={{ fontSize: "clamp(2rem, 6vw, 3.2rem)", fontWeight: 600, lineHeight: 1.15, color: "#f0ebff" }}>
+                A Quieter Path<br /><em style={{ color: "#c4a8ff" }}>to Sleep</em>
+              </h1>
+              <p style={{ fontFamily: "sans-serif", fontSize: 15, color: "#9090b8", marginTop: 14, fontWeight: 300, lineHeight: 1.7 }}>
+                Tailored for: difficulty falling asleep · irregular schedule · racing thoughts
+              </p>
+            </div>
+
+            {/* Sleep Schedule Calculator */}
+            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(180,150,255,0.15)", borderRadius: 20, padding: "28px 28px 24px", marginBottom: 28 }}>
+              <div style={{ fontSize: 18, marginBottom: 6, color: "#d8c8ff" }}>🕰 Sleep Schedule Calculator</div>
+              <div style={{ fontFamily: "sans-serif", fontSize: 13, color: "#7878a0", marginBottom: 22 }}>
+                Set your target wake time — the anchor of a consistent schedule.
+              </div>
+              <label style={{ fontFamily: "sans-serif", fontSize: 12, color: "#9090b8", display: "block", marginBottom: 8, letterSpacing: 1 }}>WAKE TIME</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <input type="range" min={240} max={660} step={15} value={wakeMins} onChange={e => setWakeMins(+e.target.value)} />
+                <span style={{ fontSize: 22, color: "#c4a8ff", minWidth: 90, textAlign: "right", whiteSpace: "nowrap" }}>{wakeLabel()}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "sans-serif", fontSize: 10, color: "#505070", marginTop: 3 }}>
+                <span>4:00 AM</span><span>11:00 AM</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 20 }}>
+                {[
+                  { label: "Start winding down", value: calcTime(9), icon: "🌅", color: "#ffb347" },
+                  { label: "Lights out by",       value: calcTime(8), icon: "🌙", color: "#9b7fd4" },
+                ].map(item => (
+                  <div key={item.label} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 14, padding: "16px 18px", border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <div style={{ fontSize: 20, marginBottom: 6 }}>{item.icon}</div>
+                    <div style={{ fontFamily: "sans-serif", fontSize: 11, color: "#6868a0", marginBottom: 4 }}>{item.label}</div>
+                    <div style={{ fontSize: 22, color: item.color }}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontFamily: "sans-serif", fontSize: 12, color: "#5a5a80", marginTop: 16, lineHeight: 1.6 }}>
+                💡 <strong style={{ color: "#8080b0" }}>Key rule:</strong> Keep this wake time even on weekends for the first 2 weeks. A consistent anchor resets your circadian rhythm faster than anything else.
+              </div>
+            </div>
+
+            {/* Habit Checklist */}
+            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(180,150,255,0.12)", borderRadius: 20, padding: "28px 28px 24px", marginBottom: 28 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, flexWrap: "wrap", gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 18, color: "#d8c8ff", marginBottom: 4 }}>🌙 Evening Wind-Down Checklist</div>
+                  <div style={{ fontFamily: "sans-serif", fontSize: 13, color: "#7878a0" }}>{done} of {habits.length} habits checked tonight</div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {filters.map(f => {
+                    const active = f === activeFilter;
+                    const tag    = tagColors[f];
+                    return (
+                      <button key={f} className="filter-btn" onClick={() => setActiveFilter(f)} style={{
+                        padding: "5px 12px", borderRadius: 20, fontSize: 11, letterSpacing: 0.5,
+                        background: active ? (tag ? tag.bg : "rgba(155,127,212,0.3)") : "rgba(255,255,255,0.05)",
+                        color:      active ? (tag ? tag.text : "#c4a8ff") : "#6868a0",
+                        border:     active ? `1px solid ${tag ? tag.border : "#9b7fd4"}` : "1px solid rgba(255,255,255,0.07)",
+                      }}>{f}</button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ height: 4, background: "rgba(255,255,255,0.07)", borderRadius: 4, marginBottom: 20, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${(done / habits.length) * 100}%`, background: "linear-gradient(90deg,#6b4fa0,#c4a8ff)", borderRadius: 4, transition: "width 0.4s ease" }} />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {filtered.map(h => {
+                  const isChecked = !!checked[h.id];
+                  const tag = tagColors[h.tag];
+                  return (
+                    <div key={h.id} className="habit-card" onClick={() => toggle(h.id)} style={{
+                      background: isChecked ? "rgba(100,80,160,0.18)" : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${isChecked ? "rgba(180,150,255,0.3)" : "rgba(255,255,255,0.07)"}`,
+                      borderRadius: 14, padding: "14px 16px", display: "flex", gap: 14, alignItems: "flex-start",
+                    }}>
+                      <div style={{
+                        width: 24, height: 24, borderRadius: "50%", flexShrink: 0, marginTop: 1,
+                        border: `2px solid ${isChecked ? "#9b7fd4" : "rgba(255,255,255,0.15)"}`,
+                        background: isChecked ? "#9b7fd4" : "transparent",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 12, color: "#fff", transition: "all 0.2s",
+                      }}>{isChecked ? "✓" : ""}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 16 }}>{h.icon}</span>
+                          <span style={{ fontFamily: "sans-serif", fontSize: 14, fontWeight: 500, color: isChecked ? "#a898d8" : "#d8d0f0", textDecoration: isChecked ? "line-through" : "none", opacity: isChecked ? 0.7 : 1 }}>{h.title}</span>
+                          <span style={{ fontFamily: "sans-serif", fontSize: 10, letterSpacing: 0.5, padding: "2px 8px", borderRadius: 10, background: tag.bg, color: tag.text, border: `1px solid ${tag.border}` }}>{h.tag}</span>
+                        </div>
+                        <div style={{ fontFamily: "sans-serif", fontSize: 12, color: "#6868a0", lineHeight: 1.6 }}>{h.desc}</div>
+                        <div style={{ fontFamily: "sans-serif", fontSize: 11, color: "#504870", marginTop: 4 }}>{h.time}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 4-7-8 Breathing */}
+            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(180,150,255,0.12)", borderRadius: 20, padding: "28px 28px 30px", textAlign: "center" }}>
+              <div style={{ fontSize: 18, color: "#d8c8ff", marginBottom: 6 }}>🌬 4–7–8 Breathing Exercise</div>
+              <div style={{ fontFamily: "sans-serif", fontSize: 13, color: "#7878a0", marginBottom: 28, lineHeight: 1.7 }}>
+                For racing thoughts at bedtime. Do 4 cycles to activate your rest response.
+              </div>
+              {breatheActive && (
+                <div style={{ marginBottom: 28 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 160, marginBottom: 16 }}>
+                    <div className="breathe-circle" style={{
+                      width: circleSize, height: circleSize, opacity: circleOpacity, borderRadius: "50%",
+                      background: breathePhase === 0 ? "radial-gradient(circle, #9b7fd4 0%, #5a3f9b 70%)"
+                                : breathePhase === 1 ? "radial-gradient(circle, #c4a8ff 0%, #9b7fd4 70%)"
+                                :                     "radial-gradient(circle, #4a3570 0%, #2a1a50 70%)",
+                      boxShadow: breathePhase === 1 ? "0 0 40px rgba(155,127,212,0.6)" : "0 0 20px rgba(155,127,212,0.2)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <div style={{ fontFamily: "sans-serif", fontSize: 28, fontWeight: 500, color: "#fff" }}>{breatheTimer}</div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 22, color: "#c4a8ff", marginBottom: 6 }}>{breatheSteps[breathePhase]}</div>
+                  <div style={{ fontFamily: "sans-serif", fontSize: 13, color: "#6868a0" }}>Cycle {breatheCount + 1} of 4</div>
+                </div>
+              )}
+              <button className="start-btn" onClick={() => setBreatheActive(a => !a)} style={{
+                padding: "13px 36px", borderRadius: 50,
+                background: breatheActive ? "rgba(255,255,255,0.08)" : "linear-gradient(135deg,#6b4fa0,#9b7fd4)",
+                color: "#fff", fontSize: 14, letterSpacing: 1,
+                boxShadow: breatheActive ? "none" : "0 4px 24px rgba(100,70,160,0.5)",
+              }}>
+                {breatheActive ? "Stop" : "Begin Exercise"}
+              </button>
+              {!breatheActive && (
+                <div style={{ fontFamily: "sans-serif", fontSize: 12, color: "#4a4870", marginTop: 18, lineHeight: 1.8 }}>
+                  Inhale through nose · Hold · Exhale through mouth<br />Best used in bed, with eyes closed
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
